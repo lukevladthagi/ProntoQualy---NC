@@ -170,5 +170,7 @@ docker compose up -d --build
 Por padrão, o container expõe a aplicação em:
 
 ```text
-http://192.168.4.45:4005
+http://localhost:4005
 ```
+
+Em produção, use o domínio público ou endereço definido pela infraestrutura.
