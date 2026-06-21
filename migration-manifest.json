@@ -1,0 +1,42 @@
+{
+  "stats": {
+    "files": 268,
+    "routeShells": 7,
+    "tables": 16,
+    "indexes": 13,
+    "inserts": 21,
+    "users": 0,
+    "routesGenerated": 33
+  },
+  "envKeys": [],
+  "redactedSecretKeys": [],
+  "assetMigration": {
+    "oldBase": "https://unknown.mochausercontent.com/",
+    "newBase": "https://dtvoeevhaseb5.cloudfront.net/uploads/mocha-import/a6a84538-8a7b-475c-9c60-de5df7bb6adf/",
+    "assetCount": 15
+  },
+  "notes": [
+    "tailwind.config: Unknown theme namespace \"keyframes\" — skipped. v4 may not support it as a @theme key.",
+    "tailwind.config: Unknown theme namespace \"animation\" — skipped. v4 may not support it as a @theme key.",
+    "tailwind.config: Config has 1 plugin(s) — these aren't ported automatically. Common Tailwind v3 plugins (typography, forms, container-queries, aspect-ratio) ship as v4-compatible packages; add them as @plugin directives in global.css.",
+    "rewrite-routes: emitted 7 app/ route shells.",
+    "strip-mocha-build: merged 2 runtime dep(s) from user package.json; pinned 1 dep(s); normalized 0 dep range(s); sanitized 0 malformed dep descriptor(s); dropped 0 unparseable dep descriptor(s).",
+    "rewrite-imports: rewrote 38 file(s).",
+    "sqlite-to-pg: 16 tables, 13 indexes, 21 inserts; skipped 5 _mocha_migrations rows.",
+    "asset-rewrite: 0 file(s) updated; 0 per-url + 0 base-host substitution(s); old=https://unknown.mochausercontent.com/ new=https://dtvoeevhaseb5.cloudfront.net/uploads/mocha-import/a6a84538-8a7b-475c-9c60-de5df7bb6adf/",
+    "seed-users: 0 users in export.",
+    "behavior-contracts: 49/49 Hono route contract(s) passed."
+  ],
+  "manualSteps": [],
+  "builderHandoffContext": [
+    "Mocha behavior contracts: 49/49 Hono route contract(s) passed."
+  ],
+  "behaviorValidation": {
+    "total": 49,
+    "passed": 49,
+    "failures": [],
+    "builderHandoff": [
+      "Mocha behavior contracts: 49/49 Hono route contract(s) passed."
+    ]
+  }
+}
