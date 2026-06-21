@@ -59,6 +59,12 @@ Em produção, ajuste `BETTER_AUTH_URL` para a URL real do servidor.
 
 Não versionar arquivos `.env`.
 
+Há um modelo em:
+
+```text
+apps/web/.env.production.example
+```
+
 ## Instalação
 
 ```bash
@@ -149,4 +155,20 @@ Por padrão, o script `start` usa o comportamento do Next.js. Defina porta via a
 
 ```bash
 PORT=4000 corepack yarn workspace web start
+```
+
+## Docker Compose
+
+O projeto inclui `Dockerfile` e `docker-compose.yml`.
+
+No servidor, crie `apps/web/.env.production` com as variáveis reais e execute:
+
+```bash
+docker compose up -d --build
+```
+
+Por padrão, o container expõe a aplicação em:
+
+```text
+http://192.168.4.45:4005
 ```

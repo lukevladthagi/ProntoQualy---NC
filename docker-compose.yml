@@ -1,0 +1,17 @@
+services:
+  prontoqualy-nc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prontoqualy-nc:latest
+    container_name: prontoqualy-nc
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env.production
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 4000
+      TZ: America/Sao_Paulo
+    ports:
+      - "4005:4000"
