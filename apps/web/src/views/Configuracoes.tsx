@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,6 +176,37 @@ const configSections: Record<string, ConfigSection> = {
     ],
   },
 };
+
+const settingsGroups = [
+  {
+    title: "Cadastros básicos",
+    items: [
+      { key: "setores", label: "Setores" },
+      { key: "tipos", label: "Tipos de Incidente" },
+      { key: "gravidades", label: "Gravidades" },
+      { key: "responsaveis", label: "Responsáveis" },
+      { key: "metas", label: "Metas Internacionais" },
+      { key: "medicos", label: "Médicos" },
+      { key: "medicamentos", label: "Medicamentos" },
+      { key: "convenios", label: "Convênios" },
+    ],
+  },
+  {
+    title: "Formulário de NC",
+    items: [
+      { key: "eventosAdversos", label: "Eventos Adversos" },
+      { key: "tiposNC", label: "Tipos de NC" },
+      { key: "locaisAcesso", label: "Locais de Acesso" },
+      { key: "locaisLesao", label: "Locais de Lesão" },
+      { key: "flebiteTipos", label: "Tipos de Flebite" },
+      { key: "flebiteFatores", label: "Fatores de Flebite" },
+    ],
+  },
+  {
+    title: "Acesso",
+    items: [{ key: "usuarios", label: "Usuários e permissões" }],
+  },
+];
 
 function normalizeKey(value: string) {
   return value
@@ -848,43 +878,59 @@ function UsuariosPermissoes() {
 }
 
 export default function Configuracoes() {
+  const [activeSection, setActiveSection] = useState("setores");
+
   return (
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Configurações do Sistema</h1>
+        <h1 className="text-2xl font-bold text-foreground">{"Configura\u00e7\u00f5es do Sistema"}</h1>
         <p className="mt-1 text-muted-foreground">
-          Gerencie os cadastros básicos do sistema
+          {"Gerencie os cadastros b\u00e1sicos do sistema"}
         </p>
       </div>
 
-      <Tabs defaultValue="setores" className="space-y-6">
-        <TabsList className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8">
-          <TabsTrigger value="setores">Setores</TabsTrigger>
-          <TabsTrigger value="tipos">Tipos</TabsTrigger>
-          <TabsTrigger value="gravidades">Gravidades</TabsTrigger>
-          <TabsTrigger value="responsaveis">Responsáveis</TabsTrigger>
-          <TabsTrigger value="metas">Metas</TabsTrigger>
-          <TabsTrigger value="medicos">Médicos</TabsTrigger>
-          <TabsTrigger value="medicamentos">Medicamentos</TabsTrigger>
-          <TabsTrigger value="convenios">Convênios</TabsTrigger>
-          <TabsTrigger value="eventosAdversos">Eventos Adversos</TabsTrigger>
-          <TabsTrigger value="tiposNC">Tipos NC</TabsTrigger>
-          <TabsTrigger value="locaisAcesso">Locais Acesso</TabsTrigger>
-          <TabsTrigger value="locaisLesao">Locais Lesão</TabsTrigger>
-          <TabsTrigger value="flebiteTipos">Tipos Flebite</TabsTrigger>
-          <TabsTrigger value="flebiteFatores">Fatores Flebite</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-        </TabsList>
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="rounded-lg border border-border bg-card p-3 lg:sticky lg:top-6 lg:self-start">
+          <nav className="space-y-5">
+            {settingsGroups.map((group) => (
+              <div key={group.title}>
+                <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.title}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const isSelected = activeSection === item.key;
 
-        {Object.keys(configSections).map((key) => (
-          <TabsContent key={key} value={key}>
-            <ConfigList section={key} />
-          </TabsContent>
-        ))}
-        <TabsContent value="usuarios">
-          <UsuariosPermissoes />
-        </TabsContent>
-      </Tabs>
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setActiveSection(item.key)}
+                        className={
+                          "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition " +
+                          (isSelected
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-foreground hover:bg-muted")
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        <section className="min-w-0">
+          {activeSection === "usuarios" ? (
+            <UsuariosPermissoes />
+          ) : (
+            <ConfigList section={activeSection} />
+          )}
+        </section>
+      </div>
     </div>
   );
 }
