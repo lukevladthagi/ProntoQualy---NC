@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@/lib/router-shim";
 import { ArrowLeft, Upload, X, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,42 @@ import {
   slaConfig,
   type Severity,
 } from "@/data/mockData";
+
+interface FormOption {
+  nome: string;
+  valor: string;
+  is_ativo?: boolean | number;
+}
+
+const defaultLocaisAcesso: FormOption[] = [
+  { nome: "Radial", valor: "radial" },
+  { nome: "Femoral", valor: "femoral" },
+  { nome: "Outros", valor: "outros" },
+];
+
+const defaultLocaisLesao: FormOption[] = [
+  { nome: "Sacra", valor: "sacra" },
+  { nome: "Glúteo", valor: "gluteo" },
+  { nome: "Calcâneo", valor: "calcaneo" },
+  { nome: "Pavilhão auricular", valor: "pavilhao_auricular" },
+  { nome: "Trocânter", valor: "trocanter" },
+];
+
+const defaultFlebiteTipos: FormOption[] = [
+  { nome: "Química", valor: "quimica" },
+  { nome: "Mecânica", valor: "mecanica" },
+  { nome: "Infecciosa", valor: "infecciosa" },
+];
+
+const defaultFlebiteFatores: FormOption[] = [
+  { nome: "Uso de amiodarona", valor: "amiodarona" },
+  { nome: "Uso de antibióticos", valor: "antibioticos" },
+  { nome: "Droga vasoativa", valor: "droga_vasoativa" },
+];
+
+function isActiveOption(option: FormOption) {
+  return option.is_ativo === undefined || option.is_ativo === true || option.is_ativo === 1;
+}
 
 export default function NCFormPage() {
   const navigate = useNavigate();
@@ -48,6 +84,8 @@ export default function NCFormPage() {
     flebiteAntibioticos: "",
     flebiteDrogaVasoativa: "",
     flebiteOutrasDrogas: "",
+    flebiteTiposSelecionados: [] as string[],
+    flebiteFatoresValores: {} as Record<string, string>,
     gravidade: "" as Severity | "",
     descricao: "",
     pacienteNome: "",
@@ -58,8 +96,45 @@ export default function NCFormPage() {
   
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dynamicOptions, setDynamicOptions] = useState({
+    eventoAdverso: eventoAdversoTipos.map((item) => ({ nome: item.label, valor: item.value })),
+    naoConformidade: naoConformidadeTipos.map((item) => ({ nome: item.label, valor: item.value })),
+    locaisAcesso: defaultLocaisAcesso,
+    locaisLesao: defaultLocaisLesao,
+    flebiteTipos: defaultFlebiteTipos,
+    flebiteFatores: defaultFlebiteFatores,
+  });
 
   const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    const categories = {
+      eventoAdverso: "evento_adverso",
+      naoConformidade: "nao_conformidade",
+      locaisAcesso: "local_acesso",
+      locaisLesao: "local_lesao",
+      flebiteTipos: "flebite_tipo",
+      flebiteFatores: "flebite_fator",
+    };
+
+    async function loadOptions() {
+      const entries = await Promise.all(
+        Object.entries(categories).map(async ([key, categoria]) => {
+          const response = await fetch(`/api/config/opcoes-formulario?categoria=${categoria}`, { cache: "no-store" });
+          if (!response.ok) return null;
+          const data = (await response.json()).filter(isActiveOption);
+          return data.length ? [key, data.map((item: any) => ({ nome: item.nome, valor: item.valor }))] : null;
+        }),
+      );
+
+      setDynamicOptions((current) => ({
+        ...current,
+        ...Object.fromEntries(entries.filter(Boolean) as [string, FormOption[]][]),
+      }));
+    }
+
+    void loadOptions();
+  }, []);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -71,6 +146,41 @@ export default function NCFormPage() {
         return newErrors;
       });
     }
+  };
+
+  const handleFlebiteTipoChange = (valor: string, checked: boolean) => {
+    const fieldByValue: Record<string, "flebiteQuimica" | "flebiteMecanica" | "flebiteInfecciosa"> = {
+      quimica: "flebiteQuimica",
+      mecanica: "flebiteMecanica",
+      infecciosa: "flebiteInfecciosa",
+    };
+    const field = fieldByValue[valor];
+
+    setFormData((prev) => ({
+      ...prev,
+      ...(field ? { [field]: checked } : {}),
+      flebiteTiposSelecionados: checked
+        ? Array.from(new Set([...prev.flebiteTiposSelecionados, valor]))
+        : prev.flebiteTiposSelecionados.filter((item) => item !== valor),
+    }));
+  };
+
+  const handleFlebiteFatorChange = (valor: string, resposta: string) => {
+    const fieldByValue: Record<string, "flebiteAmiodarona" | "flebiteAntibioticos" | "flebiteDrogaVasoativa"> = {
+      amiodarona: "flebiteAmiodarona",
+      antibioticos: "flebiteAntibioticos",
+      droga_vasoativa: "flebiteDrogaVasoativa",
+    };
+    const field = fieldByValue[valor];
+
+    setFormData((prev) => ({
+      ...prev,
+      ...(field ? { [field]: resposta } : {}),
+      flebiteFatoresValores: {
+        ...prev.flebiteFatoresValores,
+        [valor]: resposta,
+      },
+    }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,6 +269,8 @@ export default function NCFormPage() {
           flebiteAntibioticos: formData.flebiteAntibioticos || null,
           flebiteDrogaVasoativa: formData.flebiteDrogaVasoativa || null,
           flebiteOutrasDrogas: formData.flebiteOutrasDrogas || null,
+          flebiteTipos: formData.flebiteTiposSelecionados,
+          flebiteFatores: formData.flebiteFatoresValores,
           pacienteDataNascimento: formData.pacienteDataNascimento || null,
           pacienteNumeroAtendimento: formData.pacienteNumeroAtendimento || null,
           pacienteEnvolvido: formData.tipoNotificacao === "evento_adverso" 
@@ -441,9 +553,9 @@ export default function NCFormPage() {
                       <SelectValue placeholder="Selecione o evento adverso" />
                     </SelectTrigger>
                     <SelectContent>
-                      {eventoAdversoTipos.map((tipo) => (
-                        <SelectItem key={tipo.value} value={tipo.value}>
-                          {tipo.label}
+                      {dynamicOptions.eventoAdverso.map((tipo) => (
+                        <SelectItem key={tipo.valor} value={tipo.valor}>
+                          {tipo.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -465,9 +577,11 @@ export default function NCFormPage() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="radial">Radial</SelectItem>
-                        <SelectItem value="femoral">Femoral</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        {dynamicOptions.locaisAcesso.map((local) => (
+                          <SelectItem key={local.valor} value={local.valor}>
+                            {local.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
@@ -488,9 +602,11 @@ export default function NCFormPage() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="radial">Radial</SelectItem>
-                        <SelectItem value="femoral">Femoral</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        {dynamicOptions.locaisAcesso.map((local) => (
+                          <SelectItem key={local.valor} value={local.valor}>
+                            {local.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
@@ -505,83 +621,56 @@ export default function NCFormPage() {
                     <div className="space-y-2">
                       <Label>Tipo</Label>
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.flebiteQuimica}
-                            onChange={(e) => handleChange("flebiteQuimica", e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">Química</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.flebiteMecanica}
-                            onChange={(e) => handleChange("flebiteMecanica", e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">Mecânica</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.flebiteInfecciosa}
-                            onChange={(e) => handleChange("flebiteInfecciosa", e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">Infecciosa</span>
-                        </label>
+                        {dynamicOptions.flebiteTipos.map((tipo) => {
+                          const fieldByValue: Record<string, "flebiteQuimica" | "flebiteMecanica" | "flebiteInfecciosa"> = {
+                            quimica: "flebiteQuimica",
+                            mecanica: "flebiteMecanica",
+                            infecciosa: "flebiteInfecciosa",
+                          };
+                          const field = fieldByValue[tipo.valor];
+                          const checked = field
+                            ? Boolean(formData[field])
+                            : formData.flebiteTiposSelecionados.includes(tipo.valor);
+                          return (
+                            <label key={tipo.valor} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => handleFlebiteTipoChange(tipo.valor, e.target.checked)}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-sm">{tipo.nome}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="flebiteAmiodarona">Uso de amiodarona</Label>
-                      <Select
-                        value={formData.flebiteAmiodarona}
-                        onValueChange={(value) => handleChange("flebiteAmiodarona", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sim ou não" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sim">Sim</SelectItem>
-                          <SelectItem value="nao">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="flebiteAntibioticos">Uso de antibióticos</Label>
-                      <Select
-                        value={formData.flebiteAntibioticos}
-                        onValueChange={(value) => handleChange("flebiteAntibioticos", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sim ou não" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sim">Sim</SelectItem>
-                          <SelectItem value="nao">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="flebiteDrogaVasoativa">Droga vasoativa</Label>
-                      <Select
-                        value={formData.flebiteDrogaVasoativa}
-                        onValueChange={(value) => handleChange("flebiteDrogaVasoativa", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sim ou não" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sim">Sim</SelectItem>
-                          <SelectItem value="nao">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {dynamicOptions.flebiteFatores.map((fator) => {
+                      const fieldByValue: Record<string, "flebiteAmiodarona" | "flebiteAntibioticos" | "flebiteDrogaVasoativa"> = {
+                        amiodarona: "flebiteAmiodarona",
+                        antibioticos: "flebiteAntibioticos",
+                        droga_vasoativa: "flebiteDrogaVasoativa",
+                      };
+                      const field = fieldByValue[fator.valor];
+                      const value = field
+                        ? formData[field]
+                        : formData.flebiteFatoresValores[fator.valor] || "";
+                      return (
+                        <div key={fator.valor} className="space-y-2">
+                          <Label>{fator.nome}</Label>
+                          <Select value={value} onValueChange={(value) => handleFlebiteFatorChange(fator.valor, value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sim ou não" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sim">Sim</SelectItem>
+                              <SelectItem value="nao">Não</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
 
                     <div className="space-y-2">
                       <Label htmlFor="flebiteOutrasDrogas">Outras drogas e espaço aberto</Label>
@@ -626,9 +715,9 @@ export default function NCFormPage() {
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {naoConformidadeTipos.map((tipo) => (
-                      <SelectItem key={tipo.value} value={tipo.value}>
-                        {tipo.label}
+                    {dynamicOptions.naoConformidade.map((tipo) => (
+                      <SelectItem key={tipo.valor} value={tipo.valor}>
+                        {tipo.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -649,11 +738,11 @@ export default function NCFormPage() {
                         <SelectValue placeholder="Selecione a localização" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sacra">Sacra</SelectItem>
-                        <SelectItem value="gluteo">Glúteo</SelectItem>
-                        <SelectItem value="calcaneo">Calcâneo</SelectItem>
-                        <SelectItem value="pavilhao_auricular">Pavilhão auricular</SelectItem>
-                        <SelectItem value="trocanter">Trocânter</SelectItem>
+                        {dynamicOptions.locaisLesao.map((local) => (
+                          <SelectItem key={local.valor} value={local.valor}>
+                            {local.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

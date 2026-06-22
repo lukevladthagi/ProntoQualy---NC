@@ -38,6 +38,7 @@ interface ConfigSection {
   apiPath: string;
   fileName: string;
   fields: ConfigField[];
+  fixedPayload?: Record<string, any>;
 }
 
 interface UserItem {
@@ -115,6 +116,66 @@ const configSections: Record<string, ConfigSection> = {
     fileName: "config-convenios",
     fields: [{ name: "nome", label: "Nome do Convênio", type: "text", required: true }],
   },
+  eventosAdversos: {
+    title: "Eventos Adversos",
+    apiPath: "/api/config/opcoes-formulario?categoria=evento_adverso",
+    fileName: "config-eventos-adversos",
+    fixedPayload: { categoria: "evento_adverso" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
+  tiposNC: {
+    title: "Tipos de NC",
+    apiPath: "/api/config/opcoes-formulario?categoria=nao_conformidade",
+    fileName: "config-tipos-nc",
+    fixedPayload: { categoria: "nao_conformidade" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
+  locaisAcesso: {
+    title: "Locais de Acesso",
+    apiPath: "/api/config/opcoes-formulario?categoria=local_acesso",
+    fileName: "config-locais-acesso",
+    fixedPayload: { categoria: "local_acesso" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
+  locaisLesao: {
+    title: "Locais de Lesão",
+    apiPath: "/api/config/opcoes-formulario?categoria=local_lesao",
+    fileName: "config-locais-lesao",
+    fixedPayload: { categoria: "local_lesao" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
+  flebiteTipos: {
+    title: "Tipos de Flebite",
+    apiPath: "/api/config/opcoes-formulario?categoria=flebite_tipo",
+    fileName: "config-tipos-flebite",
+    fixedPayload: { categoria: "flebite_tipo" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
+  flebiteFatores: {
+    title: "Fatores de Flebite",
+    apiPath: "/api/config/opcoes-formulario?categoria=flebite_fator",
+    fileName: "config-fatores-flebite",
+    fixedPayload: { categoria: "flebite_fator" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
 };
 
 function normalizeKey(value: string) {
@@ -148,6 +209,7 @@ function ConfigList({ section }: { section: string }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const config = configSections[section];
+  const apiBasePath = config.apiPath.split("?")[0];
 
   useEffect(() => {
     loadItems();
@@ -189,12 +251,12 @@ function ConfigList({ section }: { section: string }) {
   const handleSave = async () => {
     try {
       const method = editingId ? "PUT" : "POST";
-      const url = editingId ? `${config.apiPath}/${editingId}` : config.apiPath;
+      const url = editingId ? `${apiBasePath}/${editingId}` : config.apiPath;
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...config.fixedPayload, ...formData }),
       });
 
       if (response.ok) {
@@ -212,7 +274,7 @@ function ConfigList({ section }: { section: string }) {
     if (!confirm("Tem certeza que deseja excluir este item?")) return;
 
     try {
-      const response = await fetch(`${config.apiPath}/${id}`, {
+      const response = await fetch(`${apiBasePath}/${id}`, {
         method: "DELETE",
       });
 
@@ -224,10 +286,10 @@ function ConfigList({ section }: { section: string }) {
 
   const handleToggleStatus = async (id: number | string, currentStatus: unknown) => {
     try {
-      const response = await fetch(`${config.apiPath}/${id}`, {
+      const response = await fetch(`${apiBasePath}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_ativo: !isActive(currentStatus) }),
+        body: JSON.stringify({ ...config.fixedPayload, is_ativo: !isActive(currentStatus) }),
       });
 
       if (response.ok) await loadItems();
@@ -324,10 +386,10 @@ function ConfigList({ section }: { section: string }) {
         }
 
         const existing = id ? byId.get(id) : byName.get(String(payload.nome ?? "").trim().toLowerCase());
-        const response = await fetch(existing ? `${config.apiPath}/${existing.id}` : config.apiPath, {
+        const response = await fetch(existing ? `${apiBasePath}/${existing.id}` : config.apiPath, {
           method: existing ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...config.fixedPayload, ...payload }),
         });
 
         if (!response.ok) {
@@ -796,7 +858,7 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="setores" className="space-y-6">
-        <TabsList className="grid grid-cols-4 gap-2 lg:grid-cols-9">
+        <TabsList className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8">
           <TabsTrigger value="setores">Setores</TabsTrigger>
           <TabsTrigger value="tipos">Tipos</TabsTrigger>
           <TabsTrigger value="gravidades">Gravidades</TabsTrigger>
@@ -805,6 +867,12 @@ export default function Configuracoes() {
           <TabsTrigger value="medicos">Médicos</TabsTrigger>
           <TabsTrigger value="medicamentos">Medicamentos</TabsTrigger>
           <TabsTrigger value="convenios">Convênios</TabsTrigger>
+          <TabsTrigger value="eventosAdversos">Eventos Adversos</TabsTrigger>
+          <TabsTrigger value="tiposNC">Tipos NC</TabsTrigger>
+          <TabsTrigger value="locaisAcesso">Locais Acesso</TabsTrigger>
+          <TabsTrigger value="locaisLesao">Locais Lesão</TabsTrigger>
+          <TabsTrigger value="flebiteTipos">Tipos Flebite</TabsTrigger>
+          <TabsTrigger value="flebiteFatores">Fatores Flebite</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
         </TabsList>
 
