@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Building2,
   LockKeyhole,
+  LogIn,
   Mail,
   UserRound,
 } from "lucide-react";
@@ -32,6 +33,7 @@ function isActive(value: unknown) {
 function SignUpForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const signInHref = `/account/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [setor, setSetor] = useState("");
@@ -79,7 +81,7 @@ function SignUpForm() {
       name: name.trim(),
       setor,
       perfil: "usuario",
-      setoresPermitidos: [setor],
+      setoresPermitidos: JSON.stringify([setor]),
     } as any);
 
     if (signUpError) {
@@ -97,13 +99,22 @@ function SignUpForm() {
 
   return (
     <AuthShell>
-      <div className="mb-7">
-        <h2 className="text-2xl font-bold text-slate-950">
-          Criar acesso interno
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Cadastre seu usuário e vincule o setor principal de atuação.
-        </p>
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-950">
+            Criar acesso interno
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Cadastre seu usuário e vincule o setor principal de atuação.
+          </p>
+        </div>
+        <a
+          href={signInHref}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-[#001f53] transition hover:border-[#001f53] hover:bg-slate-50"
+        >
+          <LogIn className="h-4 w-4" />
+          Entrar
+        </a>
       </div>
 
       <form
@@ -205,9 +216,10 @@ function SignUpForm() {
       <PublicNotificationCallout />
 
       <a
-        href={`/account/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-        className="mt-5 block text-center text-sm text-slate-500 hover:text-[#001f53] hover:underline"
+        href={signInHref}
+        className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 text-sm font-semibold text-[#001f53] transition hover:border-[#001f53] hover:bg-slate-50"
       >
+        <LogIn className="h-4 w-4" />
         Já tenho acesso interno
       </a>
     </AuthShell>
