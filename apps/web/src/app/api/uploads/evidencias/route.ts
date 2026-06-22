@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
   const fileName = safeFileName(file.name);
   const relativePath = `/uploads/evidencias/${fileName}`;
-  const uploadDir = path.join(process.cwd(), "apps", "web", "public", "uploads", "evidencias");
+  const uploadDir = path.join(process.cwd(), "public", "uploads", "evidencias");
   const bytes = Buffer.from(await file.arrayBuffer());
 
   await mkdir(uploadDir, { recursive: true });
