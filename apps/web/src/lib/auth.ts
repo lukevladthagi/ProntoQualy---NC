@@ -37,6 +37,12 @@ const trustedOrigins = [
     : null,
 ].filter((v): v is string => Boolean(v));
 
+const authBaseUrl = process.env.BETTER_AUTH_URL;
+const usesSecureCookies = authBaseUrl
+  ? authBaseUrl.startsWith('https://')
+  : process.env.NODE_ENV === 'production';
+const sameSiteMode: 'none' | 'lax' = usesSecureCookies ? 'none' : 'lax';
+
 export const auth = betterAuth({
   database: pool,
   trustedOrigins,
@@ -60,16 +66,16 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: 'better-auth',
     defaultCookieAttributes: {
-      sameSite: 'none', // Required for iframes
-      secure: true,
+      sameSite: sameSiteMode,
+      secure: usesSecureCookies,
       httpOnly: true,
       path: '/',
     },
     cookies: {
       sessionToken: {
         attributes: {
-          sameSite: 'none', // Required for iframes
-          secure: true,
+          sameSite: sameSiteMode,
+          secure: usesSecureCookies,
         },
       },
     },

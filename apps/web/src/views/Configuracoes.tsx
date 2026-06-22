@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 
@@ -37,6 +38,15 @@ interface ConfigSection {
   apiPath: string;
   fileName: string;
   fields: ConfigField[];
+}
+
+interface UserItem {
+  id: string;
+  name: string | null;
+  email: string;
+  setor: string | null;
+  perfil: string | null;
+  setoresPermitidos: string[] | string | null;
 }
 
 const configSections: Record<string, ConfigSection> = {
@@ -539,6 +549,242 @@ function ConfigList({ section }: { section: string }) {
   );
 }
 
+function parseSetoresPermitidos(value: UserItem["setoresPermitidos"]) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function UsuariosPermissoes() {
+  const [usuarios, setUsuarios] = useState<UserItem[]>([]);
+  const [setores, setSetores] = useState<ConfigItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    perfil: "usuario",
+    setor: "",
+    setoresPermitidos: [] as string[],
+  });
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [usersResponse, sectorsResponse] = await Promise.all([
+        fetch("/api/config/usuarios", { cache: "no-store" }),
+        fetch("/api/config/setores", { cache: "no-store" }),
+      ]);
+
+      if (usersResponse.ok) setUsuarios(await usersResponse.json());
+      if (sectorsResponse.ok) {
+        const data = await sectorsResponse.json();
+        setSetores(data.filter((item: ConfigItem) => item.nome && isActive(item.is_ativo)));
+      }
+    } catch (error) {
+      console.error("Error loading users:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const handleEdit = (usuario: UserItem) => {
+    const setoresPermitidos = parseSetoresPermitidos(usuario.setoresPermitidos);
+    setEditingId(usuario.id);
+    setFormData({
+      name: usuario.name ?? "",
+      perfil: usuario.perfil ?? "usuario",
+      setor: usuario.setor ?? setoresPermitidos[0] ?? "",
+      setoresPermitidos,
+    });
+  };
+
+  const toggleSetor = (setor: string) => {
+    setFormData((current) => {
+      const exists = current.setoresPermitidos.includes(setor);
+      const setoresPermitidos = exists
+        ? current.setoresPermitidos.filter((item) => item !== setor)
+        : [...current.setoresPermitidos, setor];
+
+      return {
+        ...current,
+        setoresPermitidos,
+        setor: current.setor || setoresPermitidos[0] || "",
+      };
+    });
+  };
+
+  const handleSave = async () => {
+    if (!editingId) return;
+
+    const setoresPermitidos =
+      formData.perfil === "admin"
+        ? setores.map((setor) => setor.nome)
+        : formData.setoresPermitidos;
+
+    const response = await fetch(`/api/config/usuarios/${editingId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...formData,
+        setor: formData.setor || setoresPermitidos[0] || "",
+        setoresPermitidos,
+      }),
+    });
+
+    if (response.ok) {
+      setEditingId(null);
+      await loadData();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Carregando...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <Users className="h-5 w-5 text-primary" />
+          Usuários e permissões
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Defina o perfil e quais setores cada pessoa pode acompanhar no sistema.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {usuarios.map((usuario) => {
+          const setoresUsuario = parseSetoresPermitidos(usuario.setoresPermitidos);
+          const isEditing = editingId === usuario.id;
+
+          return (
+            <Card key={usuario.id}>
+              <CardContent className="p-4">
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Nome</Label>
+                        <Input
+                          value={formData.name}
+                          onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Perfil</Label>
+                        <select
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={formData.perfil}
+                          onChange={(event) => setFormData({ ...formData, perfil: event.target.value })}
+                        >
+                          <option value="usuario">Usuário</option>
+                          <option value="gestor">Gestor</option>
+                          <option value="admin">Administrador</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Setor principal</Label>
+                        <select
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={formData.setor}
+                          onChange={(event) => setFormData({ ...formData, setor: event.target.value })}
+                        >
+                          <option value="">Selecione</option>
+                          {setores.map((setor) => (
+                            <option key={setor.id} value={setor.nome}>
+                              {setor.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Setores liberados</Label>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        {setores.map((setor) => (
+                          <label
+                            key={setor.id}
+                            className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                formData.perfil === "admin" ||
+                                formData.setoresPermitidos.includes(setor.nome)
+                              }
+                              disabled={formData.perfil === "admin"}
+                              onChange={() => toggleSetor(setor.nome)}
+                            />
+                            {setor.nome}
+                          </label>
+                        ))}
+                      </div>
+                      {formData.perfil === "admin" && (
+                        <p className="text-xs text-muted-foreground">
+                          Administradores recebem acesso a todos os setores ativos.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button onClick={handleSave} size="sm">
+                        <Check className="mr-2 h-4 w-4" />
+                        Salvar permissões
+                      </Button>
+                      <Button onClick={() => setEditingId(null)} size="sm" variant="outline">
+                        <X className="mr-2 h-4 w-4" />
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="font-medium">{usuario.name || usuario.email}</div>
+                      <div className="text-sm text-muted-foreground">{usuario.email}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Badge>{usuario.perfil || "usuario"}</Badge>
+                        {usuario.setor && <Badge variant="secondary">{usuario.setor}</Badge>}
+                        {setoresUsuario.slice(0, 4).map((setor) => (
+                          <Badge key={setor} variant="outline">
+                            {setor}
+                          </Badge>
+                        ))}
+                        {setoresUsuario.length > 4 && (
+                          <Badge variant="outline">+{setoresUsuario.length - 4}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button onClick={() => handleEdit(usuario)} size="sm" variant="outline">
+                      <Edit2 className="mr-2 h-4 w-4" />
+                      Permissões
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Configuracoes() {
   return (
     <div className="mx-auto max-w-7xl p-6">
@@ -550,7 +796,7 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="setores" className="space-y-6">
-        <TabsList className="grid grid-cols-4 gap-2 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-4 gap-2 lg:grid-cols-9">
           <TabsTrigger value="setores">Setores</TabsTrigger>
           <TabsTrigger value="tipos">Tipos</TabsTrigger>
           <TabsTrigger value="gravidades">Gravidades</TabsTrigger>
@@ -559,6 +805,7 @@ export default function Configuracoes() {
           <TabsTrigger value="medicos">Médicos</TabsTrigger>
           <TabsTrigger value="medicamentos">Medicamentos</TabsTrigger>
           <TabsTrigger value="convenios">Convênios</TabsTrigger>
+          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
         </TabsList>
 
         {Object.keys(configSections).map((key) => (
@@ -566,6 +813,9 @@ export default function Configuracoes() {
             <ConfigList section={key} />
           </TabsContent>
         ))}
+        <TabsContent value="usuarios">
+          <UsuariosPermissoes />
+        </TabsContent>
       </Tabs>
     </div>
   );
