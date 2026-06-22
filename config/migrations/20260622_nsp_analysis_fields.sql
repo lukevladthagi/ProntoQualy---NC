@@ -1,0 +1,15 @@
+ALTER TABLE nao_conformidades
+  ADD COLUMN IF NOT EXISTS grau_dano text,
+  ADD COLUMN IF NOT EXISTS meta_seguranca text,
+  ADD COLUMN IF NOT EXISTS evento_identificado_evolucao integer,
+  ADD COLUMN IF NOT EXISTS necessita_analise_causa integer,
+  ADD COLUMN IF NOT EXISTS necessita_plano_acao integer,
+  ADD COLUMN IF NOT EXISTS busca_ativa integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS numero_atendimento_mv text,
+  ADD COLUMN IF NOT EXISTS paciente_data_nascimento text,
+  ADD COLUMN IF NOT EXISTS paciente_idade integer,
+  ADD COLUMN IF NOT EXISTS convenio text,
+  ADD COLUMN IF NOT EXISTS tipo_fonte text,
+  ADD COLUMN IF NOT EXISTS data_internacao text,
+  ADD COLUMN IF NOT EXISTS medico_responsavel text,
+  ADD COLUMN IF NOT EXISTS localizacao_hematoma text;

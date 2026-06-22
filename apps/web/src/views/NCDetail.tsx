@@ -31,6 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -44,7 +51,6 @@ import {
 import ActionDialog from "@/components/ActionDialog";
 import AnalysisDialog from "@/components/AnalysisDialog";
 import VerificationDialog from "@/components/VerificationDialog";
-import NSPAnalysisDialog from "@/components/NSPAnalysisDialog";
 
 interface NC {
   id: number;
@@ -77,6 +83,7 @@ interface NC {
   paciente_data_nascimento?: string;
   medico_responsavel?: string;
   localizacao_hematoma?: string;
+  tipo_fonte?: string;
   email_responsavel?: string;
 }
 
@@ -154,6 +161,27 @@ const workflowSteps: NCStatus[] = [
   "encerrada",
 ];
 
+const grauDanoLabels: Record<string, string> = {
+  incidente_sem_lesao: "Incidente sem lesão",
+  leve: "Leve",
+  moderado: "Moderado",
+  grave: "Grave",
+  obito: "Óbito",
+};
+
+const metaSegurancaLabels: Record<string, string> = {
+  "1_identificacao": "1. Identificação",
+  "2_comunicacao": "2. Comunicação",
+  "3_medicacao": "3. Medicação",
+  "4_procedimento_seguro": "4. Procedimento seguro",
+  "5_risco_infeccao": "5. Risco de infecção",
+  "6_queda_lpp": "6. Queda e LPP",
+  nao_aplica: "Não se aplica",
+};
+
+const boolToSelect = (value?: number | boolean | null) =>
+  value === 1 || value === true ? "sim" : value === 0 || value === false ? "nao" : "";
+
 export default function NCDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -163,12 +191,28 @@ export default function NCDetailPage() {
   const [selectedAction, setSelectedAction] = useState<PlanoAcao | undefined>(undefined);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
-  const [nspAnalysisDialogOpen, setNspAnalysisDialogOpen] = useState(false);
   const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidenceDescription, setEvidenceDescription] = useState("");
   const [evidenceError, setEvidenceError] = useState("");
   const [evidenceSubmitting, setEvidenceSubmitting] = useState(false);
+  const [nspSubmitting, setNspSubmitting] = useState(false);
+  const [nspForm, setNspForm] = useState({
+    fonteNotificacao: "",
+    grauDano: "",
+    metaSeguranca: "",
+    eventoIdentificadoEvolucao: "",
+    necessitaAnaliseCausa: "",
+    necessitaPlanoAcao: "",
+    numeroAtendimentoMv: "",
+    pacienteDataNascimento: "",
+    pacienteIdade: "",
+    convenio: "",
+    tipoFonte: "",
+    dataInternacao: "",
+    medicoResponsavel: "",
+    localizacaoHematoma: "",
+  });
 
   useEffect(() => {
     fetchNCDetail();
@@ -180,6 +224,22 @@ export default function NCDetailPage() {
       const response = await fetch(`/api/ncs/${id}`);
       const result = await response.json();
       setData(result);
+      setNspForm({
+        fonteNotificacao: result.busca_ativa === 1 ? "busca_ativa" : "notificacao_geral",
+        grauDano: result.grau_dano ?? "",
+        metaSeguranca: result.meta_seguranca ?? "",
+        eventoIdentificadoEvolucao: boolToSelect(result.evento_identificado_evolucao),
+        necessitaAnaliseCausa: boolToSelect(result.necessita_analise_causa),
+        necessitaPlanoAcao: boolToSelect(result.necessita_plano_acao),
+        numeroAtendimentoMv: result.numero_atendimento_mv ?? "",
+        pacienteDataNascimento: result.paciente_data_nascimento ?? "",
+        pacienteIdade: result.paciente_idade ? String(result.paciente_idade) : "",
+        convenio: result.convenio ?? "",
+        tipoFonte: result.tipo_fonte ?? "",
+        dataInternacao: result.data_internacao ?? "",
+        medicoResponsavel: result.medico_responsavel ?? "",
+        localizacaoHematoma: result.localizacao_hematoma ?? "",
+      });
     } catch (error) {
       console.error("Error fetching NC:", error);
     } finally {
@@ -243,6 +303,59 @@ export default function NCDetailPage() {
     setEvidenceFile(null);
     setEvidenceDescription("");
     setEvidenceError("");
+  };
+
+  const handleNspChange = (field: string, value: string) => {
+    setNspForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveNspAnalysis = async () => {
+    setNspSubmitting(true);
+    try {
+      const response = await fetch(`/api/ncs/${id}/nsp-analysis`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buscaAtiva: nspForm.fonteNotificacao === "busca_ativa",
+          grauDano: nspForm.grauDano || null,
+          metaSeguranca: nspForm.metaSeguranca || null,
+          eventoIdentificadoEvolucao:
+            nspForm.eventoIdentificadoEvolucao === "sim"
+              ? true
+              : nspForm.eventoIdentificadoEvolucao === "nao"
+              ? false
+              : undefined,
+          necessitaAnaliseCausa:
+            nspForm.necessitaAnaliseCausa === "sim"
+              ? true
+              : nspForm.necessitaAnaliseCausa === "nao"
+              ? false
+              : undefined,
+          necessitaPlanoAcao:
+            nspForm.necessitaPlanoAcao === "sim"
+              ? true
+              : nspForm.necessitaPlanoAcao === "nao"
+              ? false
+              : undefined,
+          numeroAtendimentoMv: nspForm.numeroAtendimentoMv || null,
+          pacienteDataNascimento: nspForm.pacienteDataNascimento || null,
+          pacienteIdade: nspForm.pacienteIdade ? Number(nspForm.pacienteIdade) : null,
+          convenio: nspForm.convenio || null,
+          tipoFonte: nspForm.tipoFonte || null,
+          dataInternacao: nspForm.dataInternacao || null,
+          medicoResponsavel: nspForm.medicoResponsavel || null,
+          localizacaoHematoma: nspForm.localizacaoHematoma || null,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Erro ao salvar análise NSP");
+      await fetchNCDetail();
+    } catch (error) {
+      console.error("Error saving NSP analysis:", error);
+      alert("Erro ao salvar análise NSP");
+    } finally {
+      setNspSubmitting(false);
+    }
   };
 
   const handleAddEvidence = async (event: React.FormEvent) => {
@@ -565,9 +678,12 @@ export default function NCDetailPage() {
 
           {/* Tabs for Details */}
           <Tabs defaultValue="evidencias" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="evidencias">
                 Evidências ({evidencias.length})
+              </TabsTrigger>
+              <TabsTrigger value="nsp">
+                Análise NSP
               </TabsTrigger>
               <TabsTrigger value="analise">
                 Análises ({analises.length})
@@ -637,6 +753,144 @@ export default function NCDetailPage() {
             </TabsContent>
 
 
+
+            <TabsContent value="nsp" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Análise do NSP</CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Classificação assistencial, matriz de priorização e dados complementares do paciente.
+                      </p>
+                    </div>
+                    <Button onClick={handleSaveNspAnalysis} disabled={nspSubmitting}>
+                      <Check className="mr-2 h-4 w-4" />
+                      {nspSubmitting ? "Salvando..." : "Salvar NSP"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Origem da notificação</label>
+                      <Select value={nspForm.fonteNotificacao} onValueChange={(value) => handleNspChange("fonteNotificacao", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="notificacao_geral">Notificação geral</SelectItem>
+                          <SelectItem value="busca_ativa">Busca ativa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Grau do dano</label>
+                      <Select value={nspForm.grauDano} onValueChange={(value) => handleNspChange("grauDano", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(grauDanoLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium">Meta de segurança</label>
+                      <Select value={nspForm.metaSeguranca} onValueChange={(value) => handleNspChange("metaSeguranca", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(metaSegurancaLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Evento identificado na evolução?</label>
+                      <Select value={nspForm.eventoIdentificadoEvolucao} onValueChange={(value) => handleNspChange("eventoIdentificadoEvolucao", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Sim</SelectItem>
+                          <SelectItem value="nao">Não</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Destaque importante para as coordenações.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Necessita análise das causas?</label>
+                      <Select value={nspForm.necessitaAnaliseCausa} onValueChange={(value) => handleNspChange("necessitaAnaliseCausa", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Sim</SelectItem>
+                          <SelectItem value="nao">Não</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Necessita plano de ação?</label>
+                      <Select value={nspForm.necessitaPlanoAcao} onValueChange={(value) => handleNspChange("necessitaPlanoAcao", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Sim</SelectItem>
+                          <SelectItem value="nao">Não</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    <p className="font-semibold">Matriz de priorização e prazo de resposta</p>
+                    <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                      <p>Leve: 15 dias</p>
+                      <p>Moderado: 7 dias</p>
+                      <p>Grave ou óbito: 3 dias</p>
+                      <p>NC ou incidente sem lesão: 20 dias</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Número de atendimento MV</label>
+                      <Input value={nspForm.numeroAtendimentoMv} onChange={(event) => handleNspChange("numeroAtendimentoMv", event.target.value)} placeholder="Ex: 123456" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Data de nascimento</label>
+                      <Input type="date" value={nspForm.pacienteDataNascimento} onChange={(event) => handleNspChange("pacienteDataNascimento", event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Idade</label>
+                      <Input type="number" min="0" value={nspForm.pacienteIdade} onChange={(event) => handleNspChange("pacienteIdade", event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Convênio</label>
+                      <Input value={nspForm.convenio} onChange={(event) => handleNspChange("convenio", event.target.value)} placeholder="Convênio do paciente" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Classificação da fonte</label>
+                      <Select value={nspForm.tipoFonte} onValueChange={(value) => handleNspChange("tipoFonte", value)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="convenio">Convênio</SelectItem>
+                          <SelectItem value="sus">SUS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Data de internação</label>
+                      <Input type="date" value={nspForm.dataInternacao} onChange={(event) => handleNspChange("dataInternacao", event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Médico responsável</label>
+                      <Input value={nspForm.medicoResponsavel} onChange={(event) => handleNspChange("medicoResponsavel", event.target.value)} placeholder="Nome do médico" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Reclassificação / local do evento</label>
+                      <Input value={nspForm.localizacaoHematoma} onChange={(event) => handleNspChange("localizacaoHematoma", event.target.value)} placeholder="Ex: femoral, radial, química, mecânica" />
+                      <p className="text-xs text-muted-foreground">Use para hematoma, pseudoaneurisma, flebite e demais eventos que precisem de reclassificação.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="analise" className="mt-4">
               <Card>
@@ -953,14 +1207,6 @@ export default function NCDetailPage() {
       <VerificationDialog
         open={verificationDialogOpen}
         onClose={() => setVerificationDialogOpen(false)}
-        ncId={Number(id)}
-        onSuccess={fetchNCDetail}
-      />
-
-      {/* NSP Analysis Dialog */}
-      <NSPAnalysisDialog
-        open={nspAnalysisDialogOpen}
-        onOpenChange={setNspAnalysisDialogOpen}
         ncId={Number(id)}
         onSuccess={fetchNCDetail}
       />
