@@ -239,14 +239,6 @@ export default function NCDetailPage() {
     }
   };
 
-  const readFileAsDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-
   const resetEvidenceForm = () => {
     setEvidenceFile(null);
     setEvidenceDescription("");
@@ -269,15 +261,27 @@ export default function NCDetailPage() {
 
     setEvidenceSubmitting(true);
     try {
-      const fileUrl = await readFileAsDataUrl(evidenceFile);
+      const uploadData = new FormData();
+      uploadData.append("file", evidenceFile);
+
+      const uploadResponse = await fetch("/api/uploads/evidencias", {
+        method: "POST",
+        body: uploadData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Erro ao enviar arquivo");
+      }
+
+      const uploaded = await uploadResponse.json();
       const response = await fetch(`/api/ncs/${id}/evidencias`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nomeArquivo: evidenceFile.name,
-          tipoArquivo: evidenceFile.type || "application/octet-stream",
-          url: fileUrl,
-          tamanho: evidenceFile.size,
+          nomeArquivo: uploaded.nomeArquivo,
+          tipoArquivo: uploaded.tipoArquivo,
+          url: uploaded.url,
+          tamanho: uploaded.tamanho,
           descricao: evidenceDescription.trim() || null,
         }),
       });

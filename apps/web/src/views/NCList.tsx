@@ -25,6 +25,8 @@ import {
   type Severity,
 } from "@/data/mockData";
 
+const ALL_FILTER_VALUE = "__all__";
+
 interface NC {
   id: number;
   codigo: string;
@@ -90,7 +92,10 @@ export default function NCListPage() {
   }, [filters]);
 
   const handleFilterChange = (field: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value === ALL_FILTER_VALUE ? "" : value,
+    }));
   };
 
   const clearFilters = () => {
@@ -203,12 +208,12 @@ export default function NCListPage() {
                 {/* Status */}
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <Select value={filters.status} onValueChange={(v) => handleFilterChange("status", v)}>
+                  <Select value={filters.status || ALL_FILTER_VALUE} onValueChange={(v) => handleFilterChange("status", v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todos</SelectItem>
                       {Object.entries(statusLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
@@ -221,12 +226,12 @@ export default function NCListPage() {
                 {/* Setor */}
                 <div className="space-y-2">
                   <Label>Setor</Label>
-                  <Select value={filters.setor} onValueChange={(v) => handleFilterChange("setor", v)}>
+                  <Select value={filters.setor || ALL_FILTER_VALUE} onValueChange={(v) => handleFilterChange("setor", v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todos</SelectItem>
                       {setores.map((setor) => (
                         <SelectItem key={setor} value={setor}>
                           {setor}
@@ -239,12 +244,12 @@ export default function NCListPage() {
                 {/* Gravidade */}
                 <div className="space-y-2">
                   <Label>Gravidade</Label>
-                  <Select value={filters.gravidade} onValueChange={(v) => handleFilterChange("gravidade", v)}>
+                  <Select value={filters.gravidade || ALL_FILTER_VALUE} onValueChange={(v) => handleFilterChange("gravidade", v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todas</SelectItem>
                       {Object.entries(severityLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           <div className="flex items-center gap-2">
@@ -260,12 +265,12 @@ export default function NCListPage() {
                 {/* Tipo */}
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={filters.tipo} onValueChange={(v) => handleFilterChange("tipo", v)}>
+                  <Select value={filters.tipo || ALL_FILTER_VALUE} onValueChange={(v) => handleFilterChange("tipo", v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todos</SelectItem>
                       {Object.entries(typeLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}

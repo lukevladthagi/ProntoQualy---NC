@@ -57,3 +57,7 @@ apps/mobile/caches/*
 # playwright
 playwright-report
 test-results
+
+# uploaded evidence files
+uploads/*
+!uploads/.gitkeep

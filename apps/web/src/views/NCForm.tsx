@@ -175,19 +175,33 @@ export default function NCFormPage() {
       const result = await response.json();
       const ncId = result.id;
 
-      // Upload evidencias if any (store metadata for now)
+      // Upload evidencias if any
       if (files.length > 0) {
         for (const file of files) {
+          const uploadData = new FormData();
+          uploadData.append("file", file);
+
+          const uploadResponse = await fetch("/api/uploads/evidencias", {
+            method: "POST",
+            body: uploadData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error("Erro ao enviar evidência");
+          }
+
+          const uploaded = await uploadResponse.json();
+
           await fetch(`/api/ncs/${ncId}/evidencias`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              nomeArquivo: file.name,
-              tipoArquivo: file.type,
-              url: `/uploads/${file.name}`, // Placeholder URL
-              tamanho: file.size,
+              nomeArquivo: uploaded.nomeArquivo,
+              tipoArquivo: uploaded.tipoArquivo,
+              url: uploaded.url,
+              tamanho: uploaded.tamanho,
             }),
           });
         }
