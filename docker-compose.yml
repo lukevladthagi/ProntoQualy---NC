@@ -16,4 +16,4 @@ services:
     ports:
       - "4005:4000"
     volumes:
-      - ./uploads:/app/apps/web/public/uploads
+      - ./uploads:/app/apps/web/uploads
