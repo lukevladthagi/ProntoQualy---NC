@@ -83,6 +83,13 @@ function isActiveOption(option: FormOption) {
   return option.is_ativo === undefined || option.is_ativo === true || option.is_ativo === 1;
 }
 
+function normalizeForMatch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export default function NCFormPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -429,6 +436,23 @@ export default function NCFormPage() {
   };
 
   const visibleCustomFields = customFields.filter(isCustomFieldVisible);
+  const selectedSubtypeOption = [
+    ...dynamicOptions.eventoAdverso,
+    ...dynamicOptions.naoConformidade,
+  ].find((option) => option.valor === formData.subtipoEvento);
+  const selectedSubtypeText = normalizeForMatch(
+    `${formData.subtipoEvento} ${selectedSubtypeOption?.nome || ""}`,
+  );
+
+  const subtypeHas = (...words: string[]) =>
+    words.every((word) => selectedSubtypeText.includes(normalizeForMatch(word)));
+
+  const isHematomaAccess =
+    subtypeHas("hematoma") && (subtypeHas("puncionismo") || subtypeHas("procedimento"));
+  const isPseudoaneurisma = subtypeHas("pseudoaneurisma");
+  const isFlebite = subtypeHas("flebite");
+  const isReacaoTransfusional = subtypeHas("reacao", "transfusional");
+  const isLesaoPressao = subtypeHas("lesao", "pressao");
 
   const renderCustomField = (field: CustomField) => {
     const errorKey = `custom_${field.chave}`;
@@ -744,7 +768,7 @@ export default function NCFormPage() {
                 </div>
 
                 {/* Hematoma pós-puncionismo options */}
-                {formData.subtipoEvento === "hematoma_pos_puncionismo" && (
+                {isHematomaAccess && (
                   <div className="space-y-2">
                     <Label>Localização</Label>
                     <Select
@@ -769,7 +793,7 @@ export default function NCFormPage() {
                 )}
 
                 {/* Pseudoaneurisma options */}
-                {formData.subtipoEvento === "pseudoaneurisma" && (
+                {isPseudoaneurisma && (
                   <div className="space-y-2">
                     <Label>Localização</Label>
                     <Select
@@ -794,7 +818,7 @@ export default function NCFormPage() {
                 )}
 
                 {/* Flebite options */}
-                {formData.subtipoEvento === "flebite" && (
+                {isFlebite && (
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <Label>Tipo</Label>
@@ -863,7 +887,7 @@ export default function NCFormPage() {
                 )}
 
                 {/* Reação Transfusional note */}
-                {formData.subtipoEvento === "reacao_transfusional" && (
+                {isReacaoTransfusional && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
                     <p className="text-sm text-amber-800 font-medium">
                       Ter uma observação: NOTIFICAR AO HEMOCE
@@ -905,7 +929,7 @@ export default function NCFormPage() {
                 )}
 
                 {/* Lesão por pressão - localização */}
-                {formData.subtipoEvento === "lesao_por_pressao" && (
+                {isLesaoPressao && (
                   <div className="space-y-2 mt-2">
                     <Label>Localização</Label>
                     <Select
