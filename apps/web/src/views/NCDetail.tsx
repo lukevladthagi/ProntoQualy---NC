@@ -85,6 +85,7 @@ interface NC {
   localizacao_hematoma?: string;
   tipo_fonte?: string;
   email_responsavel?: string;
+  campos_personalizados?: Record<string, string | boolean | number | null>;
 }
 
 interface Evidencia {
@@ -670,6 +671,23 @@ export default function NCDetailPage() {
                       Paciente Envolvido
                     </label>
                     <p className="text-foreground mt-1">{nc.paciente_envolvido}</p>
+                  </div>
+                )}
+                {nc.campos_personalizados && Object.keys(nc.campos_personalizados).length > 0 && (
+                  <div className="sm:col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Campos Complementares
+                    </label>
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                      {Object.entries(nc.campos_personalizados).map(([key, value]) => (
+                        <div key={key} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                          <p className="text-xs font-medium uppercase text-muted-foreground">{key}</p>
+                          <p className="mt-1 text-sm text-foreground">
+                            {typeof value === "boolean" ? (value ? "Sim" : "Não") : String(value ?? "")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

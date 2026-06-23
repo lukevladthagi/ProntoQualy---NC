@@ -30,6 +30,7 @@ interface ConfigField {
   label: string;
   type: string;
   required?: boolean;
+  options?: Array<{ label: string; value: string }>;
 }
 
 interface ConfigSection {
@@ -175,6 +176,45 @@ const configSections: Record<string, ConfigSection> = {
       { name: "valor", label: "Código interno", type: "text" },
     ],
   },
+
+  camposFormulario: {
+    title: "Campos Personalizados",
+    apiPath: "/api/config/campos-formulario",
+    fileName: "config-campos-formulario",
+    fields: [
+      { name: "nome", label: "Nome do Campo", type: "text", required: true },
+      { name: "chave", label: "Chave interna", type: "text" },
+      {
+        name: "tipo",
+        label: "Tipo",
+        type: "select",
+        required: true,
+        options: [
+          { label: "Texto curto", value: "texto" },
+          { label: "Texto longo", value: "texto_longo" },
+          { label: "Número", value: "numero" },
+          { label: "Data", value: "data" },
+          { label: "Seleção", value: "selecao" },
+          { label: "Sim/Não", value: "sim_nao" },
+          { label: "Checkbox", value: "checkbox" },
+        ],
+      },
+      {
+        name: "contexto",
+        label: "Aparece em",
+        type: "select",
+        required: true,
+        options: [
+          { label: "Todos", value: "ambos" },
+          { label: "Somente Evento Adverso", value: "evento_adverso" },
+          { label: "Somente Não Conformidade", value: "nao_conformidade" },
+        ],
+      },
+      { name: "opcoes", label: "Opções", type: "textarea" },
+      { name: "ordem", label: "Ordem", type: "number" },
+      { name: "is_obrigatorio", label: "Obrigatório", type: "checkbox" },
+    ],
+  },
 };
 
 const settingsGroups = [
@@ -200,6 +240,7 @@ const settingsGroups = [
       { key: "locaisLesao", label: "Locais de Lesão" },
       { key: "flebiteTipos", label: "Tipos de Flebite" },
       { key: "flebiteFatores", label: "Fatores de Flebite" },
+      { key: "camposFormulario", label: "Campos Personalizados" },
     ],
   },
   {
@@ -226,6 +267,74 @@ function parseBoolean(value: unknown) {
 
 function isActive(value: unknown) {
   return value === true || value === 1;
+}
+
+function ConfigFieldInput({
+  field,
+  id,
+  value,
+  onChange,
+}: {
+  field: ConfigField;
+  id: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  if (field.type === "textarea") {
+    return (
+      <textarea
+        id={id}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        rows={3}
+        value={String(value || "")}
+        onChange={(e) => onChange(e.target.value)}
+        required={field.required}
+      />
+    );
+  }
+
+  if (field.type === "select") {
+    return (
+      <select
+        id={id}
+        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        value={String(value || "")}
+        onChange={(e) => onChange(e.target.value)}
+        required={field.required}
+      >
+        <option value="">Selecione</option>
+        {(field.options || []).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+        <input
+          id={id}
+          type="checkbox"
+          checked={isActive(value)}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        Sim
+      </label>
+    );
+  }
+
+  return (
+    <Input
+      id={id}
+      type={field.type}
+      value={String(value || "")}
+      onChange={(e) => onChange(e.target.value)}
+      required={field.required}
+    />
+  );
 }
 
 function ConfigList({ section }: { section: string }) {
@@ -264,7 +373,7 @@ function ConfigList({ section }: { section: string }) {
     setIsAdding(true);
     const initialData: Record<string, any> = {};
     config.fields.forEach((field) => {
-      initialData[field.name] = "";
+      initialData[field.name] = field.type === "checkbox" ? false : field.name === "ordem" ? 0 : "";
     });
     setFormData(initialData);
   };
@@ -273,7 +382,7 @@ function ConfigList({ section }: { section: string }) {
     setEditingId(item.id);
     const editData: Record<string, any> = {};
     config.fields.forEach((field) => {
-      editData[field.name] = item[field.name] || "";
+      editData[field.name] = item[field.name] ?? "";
     });
     setFormData(editData);
   };
@@ -511,24 +620,12 @@ function ConfigList({ section }: { section: string }) {
                     {field.label}
                     {field.required && <span className="ml-1 text-red-500">*</span>}
                   </Label>
-                  {field.type === "textarea" ? (
-                    <textarea
-                      id={`add-${field.name}`}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      rows={3}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                      required={field.required}
-                    />
-                  ) : (
-                    <Input
-                      id={`add-${field.name}`}
-                      type={field.type}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                      required={field.required}
-                    />
-                  )}
+                  <ConfigFieldInput
+                    field={field}
+                    id={`add-${field.name}`}
+                    value={formData[field.name]}
+                    onChange={(value) => setFormData({ ...formData, [field.name]: value })}
+                  />
                 </div>
               ))}
             </div>
@@ -559,24 +656,12 @@ function ConfigList({ section }: { section: string }) {
                           {field.label}
                           {field.required && <span className="ml-1 text-red-500">*</span>}
                         </Label>
-                        {field.type === "textarea" ? (
-                          <textarea
-                            id={`edit-${field.name}`}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            rows={3}
-                            value={formData[field.name] || ""}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                            required={field.required}
-                          />
-                        ) : (
-                          <Input
-                            id={`edit-${field.name}`}
-                            type={field.type}
-                            value={formData[field.name] || ""}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                            required={field.required}
-                          />
-                        )}
+                        <ConfigFieldInput
+                          field={field}
+                          id={`edit-${field.name}`}
+                          value={formData[field.name]}
+                          onChange={(value) => setFormData({ ...formData, [field.name]: value })}
+                        />
                       </div>
                     ))}
                   </div>

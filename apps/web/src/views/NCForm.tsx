@@ -30,6 +30,18 @@ interface FormOption {
   is_ativo?: boolean | number;
 }
 
+interface CustomField {
+  id: number;
+  nome: string;
+  chave: string;
+  tipo: "texto" | "texto_longo" | "numero" | "data" | "selecao" | "sim_nao" | "checkbox";
+  contexto: "ambos" | "nao_conformidade" | "evento_adverso";
+  opcoes?: string | null;
+  is_obrigatorio?: boolean | number;
+  is_ativo?: boolean | number;
+  ordem?: number;
+}
+
 const defaultLocaisAcesso: FormOption[] = [
   { nome: "Radial", valor: "radial" },
   { nome: "Femoral", valor: "femoral" },
@@ -96,6 +108,8 @@ export default function NCFormPage() {
   
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string | boolean>>({});
   const [dynamicOptions, setDynamicOptions] = useState({
     eventoAdverso: eventoAdversoTipos.map((item) => ({ nome: item.label, valor: item.value })),
     naoConformidade: naoConformidadeTipos.map((item) => ({ nome: item.label, valor: item.value })),
@@ -131,6 +145,14 @@ export default function NCFormPage() {
         ...current,
         ...Object.fromEntries(entries.filter(Boolean) as [string, FormOption[]][]),
       }));
+
+      const customFieldsResponse = await fetch("/api/config/campos-formulario", { cache: "no-store" });
+      if (customFieldsResponse.ok) {
+        const fields = (await customFieldsResponse.json())
+          .filter(isActiveOption)
+          .sort((a: CustomField, b: CustomField) => Number(a.ordem || 0) - Number(b.ordem || 0));
+        setCustomFields(fields);
+      }
     }
 
     void loadOptions();
@@ -143,6 +165,27 @@ export default function NCFormPage() {
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  const isCustomFieldVisible = (field: CustomField) =>
+    field.contexto === "ambos" || field.contexto === formData.tipoNotificacao;
+
+  const parseCustomOptions = (options?: string | null) =>
+    String(options || "")
+      .split(/\r?\n|,/)
+      .map((option) => option.trim())
+      .filter(Boolean);
+
+  const handleCustomFieldChange = (field: CustomField, value: string | boolean) => {
+    setCustomFieldValues((prev) => ({ ...prev, [field.chave]: value }));
+    const errorKey = `custom_${field.chave}`;
+    if (errors[errorKey]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
         return newErrors;
       });
     }
@@ -230,6 +273,17 @@ export default function NCFormPage() {
       }
     }
 
+    customFields
+      .filter(isCustomFieldVisible)
+      .filter((field) => field.is_obrigatorio === true || field.is_obrigatorio === 1)
+      .forEach((field) => {
+        const value = customFieldValues[field.chave];
+        const isEmpty = field.tipo === "checkbox" ? value !== true : String(value ?? "").trim() === "";
+        if (isEmpty) {
+          newErrors[`custom_${field.chave}`] = `${field.nome} é obrigatório`;
+        }
+      });
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -277,6 +331,7 @@ export default function NCFormPage() {
             ? `${formData.pacienteNome}${formData.pacienteDataNascimento ? ` - DN: ${formData.pacienteDataNascimento}` : ''}${formData.pacienteNumeroAtendimento ? ` - Atend: ${formData.pacienteNumeroAtendimento}` : ''}`
             : null,
           segurancaPaciente: formData.tipoNotificacao === "evento_adverso",
+          camposPersonalizados: customFieldValues,
         }),
       });
 
@@ -331,6 +386,89 @@ export default function NCFormPage() {
       setErrors({ submit: "Erro ao registrar NC. Tente novamente." });
       setIsSubmitting(false);
     }
+  };
+
+  const visibleCustomFields = customFields.filter(isCustomFieldVisible);
+
+  const renderCustomField = (field: CustomField) => {
+    const errorKey = `custom_${field.chave}`;
+    const value = customFieldValues[field.chave];
+    const commonLabel = (
+      <Label htmlFor={`custom-${field.chave}`}>
+        {field.nome}
+        {(field.is_obrigatorio === true || field.is_obrigatorio === 1) && (
+          <span className="text-destructive"> *</span>
+        )}
+      </Label>
+    );
+
+    if (field.tipo === "texto_longo") {
+      return (
+        <div key={field.id} className="space-y-2">
+          {commonLabel}
+          <Textarea
+            id={`custom-${field.chave}`}
+            value={String(value || "")}
+            onChange={(e) => handleCustomFieldChange(field, e.target.value)}
+            className={errors[errorKey] ? "border-destructive" : ""}
+          />
+          {errors[errorKey] && <p className="text-xs text-destructive">{errors[errorKey]}</p>}
+        </div>
+      );
+    }
+
+    if (field.tipo === "selecao" || field.tipo === "sim_nao") {
+      const options = field.tipo === "sim_nao" ? ["Sim", "Não"] : parseCustomOptions(field.opcoes);
+      return (
+        <div key={field.id} className="space-y-2">
+          {commonLabel}
+          <Select value={String(value || "")} onValueChange={(newValue) => handleCustomFieldChange(field, newValue)}>
+            <SelectTrigger className={`w-full ${errors[errorKey] ? "border-destructive" : ""}`}>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors[errorKey] && <p className="text-xs text-destructive">{errors[errorKey]}</p>}
+        </div>
+      );
+    }
+
+    if (field.tipo === "checkbox") {
+      return (
+        <div key={field.id} className="space-y-2">
+          <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+            <input
+              id={`custom-${field.chave}`}
+              type="checkbox"
+              checked={value === true}
+              onChange={(e) => handleCustomFieldChange(field, e.target.checked)}
+            />
+            {field.nome}
+          </label>
+          {errors[errorKey] && <p className="text-xs text-destructive">{errors[errorKey]}</p>}
+        </div>
+      );
+    }
+
+    return (
+      <div key={field.id} className="space-y-2">
+        {commonLabel}
+        <Input
+          id={`custom-${field.chave}`}
+          type={field.tipo === "numero" ? "number" : field.tipo === "data" ? "date" : "text"}
+          value={String(value || "")}
+          onChange={(e) => handleCustomFieldChange(field, e.target.value)}
+          className={errors[errorKey] ? "border-destructive" : ""}
+        />
+        {errors[errorKey] && <p className="text-xs text-destructive">{errors[errorKey]}</p>}
+      </div>
+    );
   };
 
   const selectedSeverity = formData.gravidade as Severity;
@@ -874,6 +1012,17 @@ export default function NCFormPage() {
             )}
           </CardContent>
         </Card>
+
+        {visibleCustomFields.length > 0 && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Campos Complementares</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              {visibleCustomFields.map(renderCustomField)}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Description Card */}
         <Card>

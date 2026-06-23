@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       paciente_envolvido, is_seguranca_paciente, status, data_prazo,
       email_responsavel, medico_responsavel, localizacao_hematoma,
       paciente_data_nascimento, numero_atendimento_mv,
-      flebite_tipos, flebite_fatores,
+      flebite_tipos, flebite_fatores, campos_personalizados,
       created_at, updated_at
     ) VALUES (
       ${codigo}, ${body.dataOcorrencia ?? null}, ${now}, ${body.setor ?? null}, ${body.unidade ?? null},
@@ -80,6 +80,7 @@ export async function POST(req: Request) {
       ${body.emailResponsavel ?? null}, ${body.medicoResponsavel ?? null}, ${body.tipoHematoma ?? body.tipoPseudoaneurisma ?? body.localizacaoLesao ?? null},
       ${body.pacienteDataNascimento ?? null}, ${body.pacienteNumeroAtendimento ?? null},
       ${JSON.stringify(body.flebiteTipos ?? [])}::jsonb, ${JSON.stringify(body.flebiteFatores ?? {})}::jsonb,
+      ${JSON.stringify(body.camposPersonalizados ?? {})}::jsonb,
       ${now}, ${now}
     )
     RETURNING id
