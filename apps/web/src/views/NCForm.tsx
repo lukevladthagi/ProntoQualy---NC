@@ -18,7 +18,7 @@ import {
 import {
   eventoAdversoTipos,
   naoConformidadeTipos,
-  setores,
+  setores as defaultSetores,
   severityLabels,
   slaConfig,
   type Severity,
@@ -27,6 +27,17 @@ import {
 interface FormOption {
   nome: string;
   valor: string;
+  is_ativo?: boolean | number;
+}
+
+interface ConfigSetor {
+  nome: string;
+  is_ativo?: boolean | number;
+}
+
+interface ConfigGravidade {
+  nome: string;
+  codigo?: string | null;
   is_ativo?: boolean | number;
 }
 
@@ -110,6 +121,10 @@ export default function NCFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string | boolean>>({});
+  const [sectorOptions, setSectorOptions] = useState<string[]>(defaultSetores);
+  const [severityOptions, setSeverityOptions] = useState(
+    Object.entries(severityLabels).map(([valor, nome]) => ({ valor, nome })),
+  );
   const [dynamicOptions, setDynamicOptions] = useState({
     eventoAdverso: eventoAdversoTipos.map((item) => ({ nome: item.label, valor: item.value })),
     naoConformidade: naoConformidadeTipos.map((item) => ({ nome: item.label, valor: item.value })),
@@ -152,6 +167,31 @@ export default function NCFormPage() {
           .filter(isActiveOption)
           .sort((a: CustomField, b: CustomField) => Number(a.ordem || 0) - Number(b.ordem || 0));
         setCustomFields(fields);
+      }
+
+      const setoresResponse = await fetch("/api/config/setores", { cache: "no-store" });
+      if (setoresResponse.ok) {
+        const setoresConfig = (await setoresResponse.json())
+          .filter(isActiveOption)
+          .map((setor: ConfigSetor) => setor.nome)
+          .filter(Boolean);
+        if (setoresConfig.length) {
+          setSectorOptions(setoresConfig);
+        }
+      }
+
+      const gravidadesResponse = await fetch("/api/config/gravidades", { cache: "no-store" });
+      if (gravidadesResponse.ok) {
+        const gravidadesConfig = (await gravidadesResponse.json())
+          .filter(isActiveOption)
+          .map((gravidade: ConfigGravidade) => ({
+            valor: String(gravidade.codigo || gravidade.nome || "").toLowerCase(),
+            nome: gravidade.nome,
+          }))
+          .filter((gravidade: FormOption) => gravidade.valor && gravidade.nome);
+        if (gravidadesConfig.length) {
+          setSeverityOptions(gravidadesConfig);
+        }
       }
     }
 
@@ -595,7 +635,7 @@ export default function NCFormPage() {
                     <SelectValue placeholder="Selecione o setor notificado" />
                   </SelectTrigger>
                   <SelectContent>
-                    {setores.map((setor) => (
+                    {sectorOptions.map((setor) => (
                       <SelectItem key={setor} value={setor}>
                         {setor}
                       </SelectItem>
@@ -620,7 +660,7 @@ export default function NCFormPage() {
                     <SelectValue placeholder="Selecione o setor notificador" />
                   </SelectTrigger>
                   <SelectContent>
-                    {setores.map((setor) => (
+                    {sectorOptions.map((setor) => (
                       <SelectItem key={setor} value={setor}>
                         {setor}
                       </SelectItem>
@@ -901,21 +941,21 @@ export default function NCFormPage() {
                   <SelectValue placeholder="Selecione a gravidade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(severityLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
+                  {severityOptions.map((option) => (
+                    <SelectItem key={option.valor} value={option.valor}>
                       <div className="flex items-center gap-2">
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            value === "baixa"
+                            option.valor === "baixa"
                               ? "bg-emerald-500"
-                              : value === "media"
+                              : option.valor === "media"
                               ? "bg-amber-500"
-                              : value === "alta"
+                              : option.valor === "alta"
                               ? "bg-orange-500"
                               : "bg-red-500"
                           }`}
                         />
-                        {label}
+                        {option.nome}
                       </div>
                     </SelectItem>
                   ))}
