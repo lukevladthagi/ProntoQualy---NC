@@ -116,6 +116,16 @@ const configSections: Record<string, ConfigSection> = {
     fileName: "config-convenios",
     fields: [{ name: "nome", label: "Nome do Convênio", type: "text", required: true }],
   },
+  tiposNotificacao: {
+    title: "Tipos de Notificação",
+    apiPath: "/api/config/opcoes-formulario?categoria=tipo_notificacao",
+    fileName: "config-tipos-notificacao",
+    fixedPayload: { categoria: "tipo_notificacao" },
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "valor", label: "Código interno", type: "text" },
+    ],
+  },
   eventosAdversos: {
     title: "Eventos Adversos",
     apiPath: "/api/config/opcoes-formulario?categoria=evento_adverso",
@@ -223,7 +233,6 @@ const settingsGroups = [
     items: [
       { key: "setores", label: "Setores" },
       { key: "tipos", label: "Tipos de Incidente" },
-      { key: "gravidades", label: "Gravidades" },
       { key: "responsaveis", label: "Responsáveis" },
       { key: "metas", label: "Metas Internacionais" },
       { key: "medicos", label: "Médicos" },
@@ -234,6 +243,8 @@ const settingsGroups = [
   {
     title: "Formulário de NC",
     items: [
+      { key: "tiposNotificacao", label: "Tipos de Notificação" },
+      { key: "gravidades", label: "Gravidade inicial" },
       { key: "eventosAdversos", label: "Eventos Adversos" },
       { key: "tiposNC", label: "Tipos de NC" },
       { key: "locaisAcesso", label: "Locais de Acesso" },

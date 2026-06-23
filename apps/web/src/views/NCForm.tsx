@@ -102,7 +102,7 @@ export default function NCFormPage() {
     setorNotificador: "",
     responsavelRegistro: "",
     emailResponsavel: "",
-    tipoNotificacao: "" as "nao_conformidade" | "evento_adverso" | "",
+    tipoNotificacao: "",
     subtipoEvento: "",
     localizacaoLesao: "",
     tipoHematoma: "",
@@ -129,6 +129,10 @@ export default function NCFormPage() {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string | boolean>>({});
   const [sectorOptions, setSectorOptions] = useState<string[]>(defaultSetores);
+  const [notificationTypeOptions, setNotificationTypeOptions] = useState([
+    { nome: "Não Conformidade (Não envolve paciente)", valor: "nao_conformidade" },
+    { nome: "Evento Adverso (Envolve paciente)", valor: "evento_adverso" },
+  ]);
   const [severityOptions, setSeverityOptions] = useState(
     Object.entries(severityLabels).map(([valor, nome]) => ({ valor, nome })),
   );
@@ -145,6 +149,7 @@ export default function NCFormPage() {
 
   useEffect(() => {
     const categories = {
+      tipoNotificacao: "tipo_notificacao",
       eventoAdverso: "evento_adverso",
       naoConformidade: "nao_conformidade",
       locaisAcesso: "local_acesso",
@@ -167,6 +172,11 @@ export default function NCFormPage() {
         ...current,
         ...Object.fromEntries(entries.filter(Boolean) as [string, FormOption[]][]),
       }));
+
+      const tipoNotificacaoEntry = entries.find((entry) => entry?.[0] === "tipoNotificacao");
+      if (tipoNotificacaoEntry?.[1]?.length) {
+        setNotificationTypeOptions(tipoNotificacaoEntry[1]);
+      }
 
       const customFieldsResponse = await fetch("/api/config/campos-formulario", { cache: "no-store" });
       if (customFieldsResponse.ok) {
@@ -217,8 +227,21 @@ export default function NCFormPage() {
     }
   };
 
+  const selectedNotificationOption = notificationTypeOptions.find(
+    (option) => option.valor === formData.tipoNotificacao,
+  );
+  const selectedNotificationText = normalizeForMatch(
+    `${formData.tipoNotificacao} ${selectedNotificationOption?.nome || ""}`,
+  );
+  const selectedNotificationKind =
+    selectedNotificationText.includes("evento") && selectedNotificationText.includes("adverso")
+      ? "evento_adverso"
+      : selectedNotificationText.includes("conformidade")
+      ? "nao_conformidade"
+      : formData.tipoNotificacao;
+
   const isCustomFieldVisible = (field: CustomField) =>
-    field.contexto === "ambos" || field.contexto === formData.tipoNotificacao;
+    field.contexto === "ambos" || field.contexto === selectedNotificationKind;
 
   const parseCustomOptions = (options?: string | null) =>
     String(options || "")
@@ -310,7 +333,7 @@ export default function NCFormPage() {
     }
 
     // Validations for evento_adverso
-    if (formData.tipoNotificacao === "evento_adverso") {
+    if (selectedNotificationKind === "evento_adverso") {
       if (!formData.pacienteNome.trim()) {
         newErrors.pacienteNome = "Nome do paciente é obrigatório para evento adverso";
       }
@@ -357,7 +380,7 @@ export default function NCFormPage() {
           emailResponsavel: formData.emailResponsavel || null,
           medicoResponsavel: formData.medicoResponsavel || null,
           tipo: formData.subtipoEvento,
-          tipoNotificacao: formData.tipoNotificacao,
+          tipoNotificacao: selectedNotificationKind,
           gravidade: formData.gravidade,
           descricao: formData.descricao,
           localizacaoLesao: formData.localizacaoLesao || null,
@@ -374,10 +397,10 @@ export default function NCFormPage() {
           flebiteFatores: formData.flebiteFatoresValores,
           pacienteDataNascimento: formData.pacienteDataNascimento || null,
           pacienteNumeroAtendimento: formData.pacienteNumeroAtendimento || null,
-          pacienteEnvolvido: formData.tipoNotificacao === "evento_adverso" 
+          pacienteEnvolvido: selectedNotificationKind === "evento_adverso" 
             ? `${formData.pacienteNome}${formData.pacienteDataNascimento ? ` - DN: ${formData.pacienteDataNascimento}` : ''}${formData.pacienteNumeroAtendimento ? ` - Atend: ${formData.pacienteNumeroAtendimento}` : ''}`
             : null,
-          segurancaPaciente: formData.tipoNotificacao === "evento_adverso",
+          segurancaPaciente: selectedNotificationKind === "evento_adverso",
           camposPersonalizados: customFieldValues,
         }),
       });
@@ -713,18 +736,23 @@ export default function NCFormPage() {
                 </Label>
                 <Select
                   value={formData.tipoNotificacao}
-                  onValueChange={(value) => handleChange("tipoNotificacao", value)}
+                  onValueChange={(value) => {
+                    handleChange("tipoNotificacao", value);
+                    handleChange("subtipoEvento", "");
+                    handleChange("localizacaoLesao", "");
+                    handleChange("tipoHematoma", "");
+                    handleChange("tipoPseudoaneurisma", "");
+                  }}
                 >
                   <SelectTrigger className={`w-full ${errors.tipoNotificacao ? "border-destructive" : ""}`}>
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="nao_conformidade">
-                      Não Conformidade (Não envolve paciente)
-                    </SelectItem>
-                    <SelectItem value="evento_adverso">
-                      Evento Adverso (Envolve paciente)
-                    </SelectItem>
+                    {notificationTypeOptions.map((tipo) => (
+                      <SelectItem key={tipo.valor} value={tipo.valor}>
+                        {tipo.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {errors.tipoNotificacao && (
@@ -735,7 +763,7 @@ export default function NCFormPage() {
             </div>
 
             {/* Subtipo de Evento Adverso */}
-            {formData.tipoNotificacao === "evento_adverso" && (
+            {selectedNotificationKind === "evento_adverso" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>
@@ -901,7 +929,7 @@ export default function NCFormPage() {
             )}
 
             {/* Subtipo de Não Conformidade */}
-            {formData.tipoNotificacao === "nao_conformidade" && (
+            {selectedNotificationKind === "nao_conformidade" && (
               <div className="space-y-2">
                 <Label>
                   Tipo de Não Conformidade <span className="text-destructive">*</span>
@@ -996,7 +1024,7 @@ export default function NCFormPage() {
             </div>
 
             {/* Patient Info for evento_adverso */}
-            {formData.tipoNotificacao === "evento_adverso" && (
+            {selectedNotificationKind === "evento_adverso" && (
               <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="w-5 h-5 text-amber-600" />
